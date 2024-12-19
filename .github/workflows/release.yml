@@ -1,0 +1,109 @@
+name: Update baseURL and Create Pull Request
+
+on:
+  workflow_dispatch:
+    inputs:
+      current_latest_branch:
+        description: 'The current latest branch to update config.toml'
+        required: true
+      next_latest_branch:
+        description: 'The new branch to create from master'
+        required: true
+jobs:
+  update-config-and-create-pr:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout the current latest branch
+      - name: Checkout the current latest branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.current_latest_branch }}
+
+      # Configure Git Identity for committing changes
+      - name: Configure Git Identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      # Extract version from the current_latest_branch (e.g., 'release-5.5' -> '5.5')
+      - name: Extract version from branch name
+        id: extract_version
+        run: |
+          VERSION=$(echo "${{ github.event.inputs.current_latest_branch }}" | grep -oP '\d+\.\d+')
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+      - name: Extract version from next branch name
+        id: extract_version_from_next_release
+        run: |
+          NEXT_VERSION=$(echo "${{ github.event.inputs.next_latest_branch }}" | grep -oP '\d+\.\d+')
+          echo "NEXT_VERSION=$NEXT_VERSION" >> $GITHUB_ENV
+
+      # Update baseURL in config.toml with the extracted version
+      - name: Update baseURL in config.toml
+        run: |
+          sed -i "s|baseURL = \"//tyk.io/docs/\"|baseURL = \"//tyk.io/docs/$VERSION/\"|g" tyk-docs/config.toml
+
+      # Create Pull Request using peter-evans action
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: update-config-${{ github.event.inputs.current_latest_branch }}-${{ github.run_id }}
+          title: "Update baseURL to //tyk.io/docs/${{ env.VERSION }}/"
+          body: "This pull request updates the baseURL in config.toml to //tyk.io/docs/${{ env.VERSION }}/."
+          labels: ${{ github.event.inputs.next_latest_branch }}
+          assignees: ${{ github.actor }}
+
+      # Checkout master branch to create a new branch
+      - name: Checkout master branch
+        uses: actions/checkout@v4
+        with:
+          ref: master
+      - name: Update stable-updater.yaml
+        run: |
+          sed -i "s|${{ github.event.inputs.current_latest_branch }}|${{ github.event.inputs.next_latest_branch }}|g" .github/workflows/stable-updater.yaml
+
+      - name: Create Pull Request for stable-updater.yaml update
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.ORG_GH_TOKEN }}
+          branch: update-stable-updater-${{ github.run_id }}
+          title: "Update stable-updater.yaml to use ${{ github.event.inputs.next_latest_branch }}"
+          body: "This pull request updates the stable-updater.yaml file to use the next_latest_branch ${{ github.event.inputs.next_latest_branch }}."
+          labels: ${{ github.event.inputs.next_latest_branch }}
+          assignees: ${{ github.actor }}
+      # Create the new branch from master
+      # Fetch all branches to ensure current_latest_branch is available
+      - name: Fetch all branches
+        run: |
+          git fetch --all
+
+      # Create the new branch from master
+      - name: Create the new branch from master
+        run: |
+          git checkout -b ${{ github.event.inputs.next_latest_branch }}
+
+      # Copy _redirects file from current_latest_branch
+      - name: Copy _redirects file
+        run: |
+          git fetch origin ${{ github.event.inputs.current_latest_branch }}  # Ensure the branch is fetched
+          git checkout origin/${{ github.event.inputs.current_latest_branch }} -- _redirects
+          git add _redirects
+          git commit -m "Copy _redirects from ${{ github.event.inputs.current_latest_branch }}"
+
+          # Extract version from next_latest_branch
+          VERSION=${{ github.event.inputs.next_latest_branch }}
+          VERSION=${VERSION#release-}  # Remove 'release-' prefix
+
+          # Construct the URL
+          URL="https://release-${VERSION//./-}--tyk-docs.netlify.app/docs/:splat"
+          echo "/docs/${VERSION}/* $URL 200!" >> _redirects
+          git add _redirects
+          git commit -m "Add redirect for version $VERSION"
+
+      # Push the new branch to origin
+      - name: Push the new branch to origin
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git push origin ${{ github.event.inputs.next_latest_branch }}
