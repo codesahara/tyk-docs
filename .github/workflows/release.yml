@@ -49,6 +49,20 @@ jobs:
           echo "Pull Request branch: ${{ steps.stable-updater.outputs.pull-request-branch }}"
           gh pr merge ${{ steps.stable-updater.outputs.pull-request-number }}  --merge --auto
 
+      - name: Update version file
+        run:  |
+          python3 scripts/modify_version_json.py
+
+      - name: Create Pull Request for version.json update
+        id: version-updater
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.ORG_GH_TOKEN }}
+          branch: update-version-json-${{ github.run_id }}
+          title: "Update version.json "
+          body: "This pull request updates the version.json file"
+          labels: ${{ github.event.inputs.next_latest_branch }}
+          assignees: ${{ github.actor }}
       # Checkout the current latest branch
       - name: Checkout the current latest branch
         uses: actions/checkout@v4
@@ -141,3 +155,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.ORG_GH_TOKEN }}
         run: |
           git push origin ${{ github.event.inputs.next_latest_branch }}
+      
