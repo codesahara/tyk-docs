@@ -100,6 +100,10 @@ jobs:
           echo "/docs/${VERSION}/* $URL 200!" >> _redirects
           git add _redirects
           git commit -m "Add redirect for version $VERSION"
+          #change the config file 
+          sed -i "s|baseURL = \"//tyk.io/docs/nightly/\"|baseURL = \"//tyk.io/docs/\"|g" tyk-docs/config.toml
+          git add tyk-docs/config.toml
+          git commit -m "change the config version"
 
       # Push the new branch to origin
       - name: Push the new branch to origin
