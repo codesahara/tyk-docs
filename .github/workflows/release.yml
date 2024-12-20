@@ -61,9 +61,11 @@ jobs:
 
         # enable auto merging of the pull request
       - name: Enable Pull Request Automerge and approve
+        env:
+          GITHUB_TOKEN: ${{ secrets.ORG_GH_TOKEN}}
         run: | 
           gh pr merge ${{ steps.cpr.outputs.pull-request-number }} --merge --auto
-          gh pr review ${{ steps.cpr.outputs.pull-request-number }} --approve
+      #gh pr review ${{ steps.cpr.outputs.pull-request-number }} --approve
 
       # Checkout master branch to create a new branch
       - name: Checkout master branch
