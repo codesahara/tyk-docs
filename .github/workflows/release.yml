@@ -14,6 +14,38 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # Checkout master and update stable updater
+      - name: Checkout master branch
+        uses: actions/checkout@v4
+        with:
+          ref: master
+      - name: Update stable-updater.yaml
+        run: |
+          sed -i "s|${{ github.event.inputs.current_latest_branch }}|${{ github.event.inputs.next_latest_branch }}|g" .github/workflows/stable-updater.yaml
+
+      - name: Create Pull Request for stable-updater.yaml update
+        id: stable-updater
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.ORG_GH_TOKEN }}
+          branch: update-stable-updater-${{ github.run_id }}
+          title: "Update stable-updater.yaml to use ${{ github.event.inputs.next_latest_branch }}"
+          body: "This pull request updates the stable-updater.yaml file to use the next_latest_branch ${{ github.event.inputs.next_latest_branch }}."
+          labels: ${{ github.event.inputs.next_latest_branch }}
+          assignees: ${{ github.actor }}
+
+      #install github cli
+      - name: Install GitHub CLI
+        run: |
+          sudo apt-get install gh   
+
+        # enable auto merging of the pull request
+      - name: Enable Pull Request Automerge and approve
+        env:
+          GITHUB_TOKEN: ${{ secrets.ORG_GH_TOKEN}}
+        run: |
+          gh pr merge ${{ steps.cpr.outputs.pull-request-number }}  --merge --auto
+
       # Checkout the current latest branch
       - name: Checkout the current latest branch
         uses: actions/checkout@v4
@@ -26,10 +58,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      #install github cli
-      - name: Install GitHub CLI
-        run: |
-          sudo apt-get install gh
       # Extract version from the current_latest_branch (e.g., 'release-5.5' -> '5.5')
       - name: Extract version from branch name
         id: extract_version
@@ -64,27 +92,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.ORG_GH_TOKEN}}
         run: | 
-          gh pr merge ${{ steps.cpr.outputs.pull-request-number }} --merge --auto
+          gh pr merge ${{ steps.cpr.outputs.pull-request-number }}  --merge --auto
       #gh pr review ${{ steps.cpr.outputs.pull-request-number }} --approve
 
-      # Checkout master branch to create a new branch
-      - name: Checkout master branch
-        uses: actions/checkout@v4
-        with:
-          ref: master
-      - name: Update stable-updater.yaml
-        run: |
-          sed -i "s|${{ github.event.inputs.current_latest_branch }}|${{ github.event.inputs.next_latest_branch }}|g" .github/workflows/stable-updater.yaml
 
-      - name: Create Pull Request for stable-updater.yaml update
-        uses: peter-evans/create-pull-request@v7
-        with:
-          token: ${{ secrets.ORG_GH_TOKEN }}
-          branch: update-stable-updater-${{ github.run_id }}
-          title: "Update stable-updater.yaml to use ${{ github.event.inputs.next_latest_branch }}"
-          body: "This pull request updates the stable-updater.yaml file to use the next_latest_branch ${{ github.event.inputs.next_latest_branch }}."
-          labels: ${{ github.event.inputs.next_latest_branch }}
-          assignees: ${{ github.actor }}
       # Create the new branch from master
       # Fetch all branches to ensure current_latest_branch is available
       - name: Fetch all branches
