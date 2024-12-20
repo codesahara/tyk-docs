@@ -45,6 +45,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.ORG_GH_TOKEN}}
         run: |
           echo "Pull Request Number: ${{ steps.stable-updater.outputs.pull-request-number }}"
+          echo "Pull Request operation: ${{ steps.stable-updater.outputs.pull-request-operation }}"
+          echo "Pull Request branch: ${{ steps.stable-updater.outputs.pull-request-branch }}"
           gh pr merge ${{ steps.stable-updater.outputs.pull-request-number }}  --merge --auto
 
       # Checkout the current latest branch
