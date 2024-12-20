@@ -21,7 +21,7 @@ jobs:
           ref: master
       - name: Update stable-updater.yaml
         run: |
-          sed -i -E "s/release-[0-9]+\.[0-9]+/${{ github.event.inputs.next_latest_branch }}/g" .github/workflows/stable-updater.yaml
+          sed -i -E "s/release-[0-9]+(\.[0-9]+)?/${{ github.event.inputs.next_latest_branch }}/g" .github/workflows/stable-updater.yaml
 
       - name: Create Pull Request for stable-updater.yaml update
         id: stable-updater
