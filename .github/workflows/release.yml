@@ -26,6 +26,10 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
+      #install github cli
+      - name: Install GitHub CLI
+        run: |
+          sudo apt-get install gh
       # Extract version from the current_latest_branch (e.g., 'release-5.5' -> '5.5')
       - name: Extract version from branch name
         id: extract_version
@@ -45,6 +49,7 @@ jobs:
 
       # Create Pull Request using peter-evans action
       - name: Create Pull Request
+        id: cpr
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.ORG_GH_TOKEN }}
@@ -53,6 +58,14 @@ jobs:
           body: "This pull request updates the baseURL in config.toml to //tyk.io/docs/${{ env.VERSION }}/."
           labels: ${{ github.event.inputs.next_latest_branch }}
           assignees: ${{ github.actor }}
+
+        # enable auto merging of the pull request
+      - name: Enable Pull Request Automerge and approve
+        env:
+          GITHUB_TOKEN: ${{ secrets.ORG_GH_TOKEN}}
+        run: | 
+          gh pr merge ${{ steps.cpr.outputs.pull-request-number }} --merge --auto
+          gh pr review ${{ steps.cpr.outputs.pull-request-number }} --approve
 
       # Checkout master branch to create a new branch
       - name: Checkout master branch
