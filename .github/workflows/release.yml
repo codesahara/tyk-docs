@@ -44,7 +44,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.ORG_GH_TOKEN}}
         run: |
-          gh pr merge ${{ steps.cpr.outputs.pull-request-number }}  --merge --auto
+          echo "Pull Request Number: ${{ steps.stable-updater.outputs.pull-request-number }}"
+          gh pr merge ${{ steps.stable-updater.outputs.pull-request-number }}  --merge --auto
 
       # Checkout the current latest branch
       - name: Checkout the current latest branch
