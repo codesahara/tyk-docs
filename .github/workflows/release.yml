@@ -98,7 +98,10 @@ jobs:
           gh pr merge ${{ steps.cpr.outputs.pull-request-number }}  --merge --auto
       #gh pr review ${{ steps.cpr.outputs.pull-request-number }} --approve
 
-
+      - name: Checkout master branch
+        uses: actions/checkout@v4
+        with:
+          ref: master
       # Create the new branch from master
       # Fetch all branches to ensure current_latest_branch is available
       - name: Fetch all branches
