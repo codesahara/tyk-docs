@@ -18,3 +18,4 @@
 /docs/5.10/* https://release-5-10--tyk-docs.netlify.app/docs/:splat 200!
 /docs/5.12/* https://release-5-12--tyk-docs.netlify.app/docs/:splat 200!
 /docs/5.13/* https://release-5-13--tyk-docs.netlify.app/docs/:splat 200!
+/docs/5.15/* https://release-5-15--tyk-docs.netlify.app/docs/:splat 200!
