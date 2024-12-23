@@ -3,9 +3,6 @@ name: Update baseURL and Create Pull Request
 on:
   workflow_dispatch:
     inputs:
-      current_latest_branch:
-        description: 'The current latest branch to update config.toml'
-        required: true
       next_latest_branch:
         description: 'The new branch to create from master'
         required: true
@@ -24,18 +21,21 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: master
-      - name: Update stable-updater.yaml
-        run: |
-          sed -i -E "s/release-[0-9]+(\.[0-9]+)?/${{ github.event.inputs.next_latest_branch }}/g" .github/workflows/stable-updater.yaml
+      - name: Update version file
+        id: update_version
+        run:  |
+          cd scripts
+          CURRENT_BRANCH=$(python3 modify_version_json.py --next_release ${{ github.event.inputs.next_latest_branch }})
+          echo "current_latest_branch=$CURRENT_BRANCH" >> $GITHUB_OUTPUT
 
-      - name: Create Pull Request for stable-updater.yaml update
-        id: stable-updater
+      - name: Create Pull Request for version.json update
+        id: version-updater
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.ORG_GH_TOKEN }}
-          branch: update-stable-updater-${{ github.run_id }}
-          title: "Update stable-updater.yaml to use ${{ github.event.inputs.next_latest_branch }}"
-          body: "This pull request updates the stable-updater.yaml file to use the next_latest_branch ${{ github.event.inputs.next_latest_branch }}."
+          branch: update-version-json-${{ github.run_id }}
+          title: "Update version.json "
+          body: "This pull request updates the version.json file"
           labels: ${{ github.event.inputs.next_latest_branch }}
           assignees: ${{ github.actor }}
 
@@ -52,26 +52,34 @@ jobs:
         run: |
           gh pr merge ${{ steps.stable-updater.outputs.pull-request-number }}  --merge --auto
 
-      - name: Update version file
-        run:  |
-          cd scripts
-          python3 modify_version_json.py --current_release ${{ github.event.inputs.current_latest_branch }} --next_release ${{ github.event.inputs.next_latest_branch }}
+      - name: Update stable-updater.yaml
+        run: |
+          sed -i -E "s/release-[0-9]+(\.[0-9]+)?/${{ github.event.inputs.next_latest_branch }}/g" .github/workflows/stable-updater.yaml
 
-      - name: Create Pull Request for version.json update
-        id: version-updater
+      - name: Create Pull Request for stable-updater.yaml update
+        id: stable-updater
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.ORG_GH_TOKEN }}
-          branch: update-version-json-${{ github.run_id }}
-          title: "Update version.json "
-          body: "This pull request updates the version.json file"
+          branch: update-stable-updater-${{ github.run_id }}
+          title: "Update stable-updater.yaml to use ${{ github.event.inputs.next_latest_branch }}"
+          body: "This pull request updates the stable-updater.yaml file to use the next_latest_branch ${{ github.event.inputs.next_latest_branch }}."
           labels: ${{ github.event.inputs.next_latest_branch }}
           assignees: ${{ github.actor }}
+
+        # enable auto merging of the pull request
+      - name: Enable Pull Request Automerge and approve
+        if: ${{ env.AUTOMERGE == 'true' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.ORG_GH_TOKEN}}
+        run: |
+          gh pr merge ${{ steps.stable-updater.outputs.pull-request-number }}  --merge --auto
+
       # Checkout the current latest branch
       - name: Checkout the current latest branch
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.current_latest_branch }}
+          ref: ${{  steps.update_version.outputs.current_latest_branch }}
 
       # Configure Git Identity for committing changes
       - name: Configure Git Identity
@@ -83,7 +91,7 @@ jobs:
       - name: Extract version from branch name
         id: extract_version
         run: |
-          VERSION=$(echo "${{ github.event.inputs.current_latest_branch }}" | grep -oP '\d+\.\d+')
+          VERSION=$(echo "${{ steps.update_version.outputs.current_latest_branch }}" | grep -oP '\d+\.\d+')
           echo "VERSION=$VERSION" >> $GITHUB_ENV
       - name: Extract version from next branch name
         id: extract_version_from_next_release
@@ -102,7 +110,7 @@ jobs:
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.ORG_GH_TOKEN }}
-          branch: update-config-${{ github.event.inputs.current_latest_branch }}-${{ github.run_id }}
+          branch: update-config-${{  steps.update_version.outputs.current_latest_branch }}-${{ github.run_id }}
           title: "Update baseURL to //tyk.io/docs/${{ env.VERSION }}/"
           body: "This pull request updates the baseURL in config.toml to //tyk.io/docs/${{ env.VERSION }}/."
           labels: ${{ github.event.inputs.next_latest_branch }}
@@ -135,10 +143,10 @@ jobs:
       # Copy _redirects file from current_latest_branch
       - name: Copy _redirects file
         run: |
-          git fetch origin ${{ github.event.inputs.current_latest_branch }}  # Ensure the branch is fetched
-          git checkout origin/${{ github.event.inputs.current_latest_branch }} -- _redirects
+          git fetch origin ${{  steps.update_version.outputs.current_latest_branch }}  # Ensure the branch is fetched
+          git checkout origin/${{  steps.update_version.outputs.current_latest_branch }} -- _redirects
           git add _redirects
-          git commit -m "Copy _redirects from ${{ github.event.inputs.current_latest_branch }}"
+          git commit -m "Copy _redirects from ${{  steps.update_version.outputs.current_latest_branch }}"
 
           # Extract version from next_latest_branch
           VERSION=${{ github.event.inputs.next_latest_branch }}
