@@ -9,10 +9,15 @@ on:
       next_latest_branch:
         description: 'The new branch to create from master'
         required: true
+      should_automerge:
+        description: 'Should automatically merge the PR?'
+        required: false
+        default: 'false'
 jobs:
   update-config-and-create-pr:
     runs-on: ubuntu-latest
-
+    env:
+      AUTOMERGE: ${{ github.event.inputs.automerge }}
     steps:
       # Checkout master and update stable updater
       - name: Checkout master branch
@@ -41,12 +46,10 @@ jobs:
 
         # enable auto merging of the pull request
       - name: Enable Pull Request Automerge and approve
+        if: ${{ env.AUTOMERGE == 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.ORG_GH_TOKEN}}
         run: |
-          echo "Pull Request Number: ${{ steps.stable-updater.outputs.pull-request-number }}"
-          echo "Pull Request operation: ${{ steps.stable-updater.outputs.pull-request-operation }}"
-          echo "Pull Request branch: ${{ steps.stable-updater.outputs.pull-request-branch }}"
           gh pr merge ${{ steps.stable-updater.outputs.pull-request-number }}  --merge --auto
 
       - name: Update version file
@@ -106,6 +109,7 @@ jobs:
 
         # enable auto merging of the pull request
       - name: Enable Pull Request Automerge and approve
+        if: ${{ env.AUTOMERGE == 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.ORG_GH_TOKEN}}
         run: | 
