@@ -54,7 +54,7 @@ jobs:
 
       - name: Update version file
         run:  |
-          python3 scripts/modify_version_json.py
+          python3 scripts/modify_version_json.py --current_release ${{ github.event.inputs.current_latest_branch }} --next_release ${{ github.event.inputs.next_latest_branch }}
 
       - name: Create Pull Request for version.json update
         id: version-updater
